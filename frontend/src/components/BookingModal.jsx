@@ -1,85 +1,106 @@
+// src/components/BookingModal.jsx
 import React, { useState } from 'react';
-import { X, ShieldAlert, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import CameraCapture from './CameraCapture';
 
-export default function BookingModal({ item, mode, onClose, onSubmit }) {
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [returnDate, setReturnDate] = useState('');
-  const [preDefects, setPreDefects] = useState(item?.preDefects || '');
-  const [postDefects, setPostDefects] = useState('');
+export default function BookingModal({ selectedItem, mode, onClose, onSave }) {
+  const [showCamera, setShowCamera] = useState(false);
+  const [photos, setPhotos] = useState(
+    mode === 'issue' 
+      ? selectedItem?.preIssuePhotos || [] 
+      : selectedItem?.postReturnPhotos || []
+  );
+  const [notes, setNotes] = useState(
+    mode === 'issue' ? selectedItem?.preDefects || '' : selectedItem?.postDefects || ''
+  );
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit({
-      ...item,
-      customerName: mode === 'dispatch' ? customerName : item.customerName,
-      customerPhone: mode === 'dispatch' ? customerPhone : item.customerPhone,
-      returnDate: mode === 'dispatch' ? returnDate : item.returnDate,
-      issueDate: mode === 'dispatch' ? new Date().toISOString().split('T')[0] : item.issueDate,
-      preDefects,
-      postDefects: mode === 'return' ? postDefects : '',
-      status: mode === 'dispatch' ? 'Rented Out' : 'Available in Shop'
+
+    const updatePayload = mode === 'issue' ? {
+      status: 'Rented Out',
+      preDefects: notes,
+      preIssuePhotos: photos,
+    } : {
+      status: 'Available in Shop',
+      postDefects: notes,
+      postReturnPhotos: photos,
+    };
+
+    const res = await fetch(`http://localhost:5000/api/equipment/${selectedItem._id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatePayload)
     });
-    onClose();
+
+    if (res.ok) {
+      onSave();
+      onClose();
+    } else {
+      alert("Failed to update item.");
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-lg w-full max-w-lg overflow-hidden shadow-2xl relative">
-        <div className="bg-[#0f172a] px-6 py-4 border-b border-slate-700 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            {mode === 'dispatch' ? <ArrowUpRight className="w-5 h-5 text-amber-500" /> : <ArrowDownLeft className="w-5 h-5 text-emerald-400" />}
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-              {mode === 'dispatch' ? 'Issue Equipment' : 'Receive Return'}
-            </h3>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-40">
+      <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl max-w-md w-full text-white">
+        <h2 className="text-xl font-bold mb-4">
+          {mode === 'issue' ? 'Issue Equipment (Pre-Check)' : 'Return Equipment (Post-Check)'}
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Defect / Condition Notes</label>
+            <textarea 
+              value={notes} 
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white"
+              rows={3}
+              placeholder="Record any scratches, damage, or condition notes..."
+            />
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
-        </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="bg-[#0f172a] p-3.5 rounded border border-slate-800">
-            <p className="text-base font-bold text-white">{item.title}</p>
-            <p className="text-xs text-amber-500 font-mono">{item.serialNo}</p>
-          </div>
-
-          {mode === 'dispatch' ? (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Customer Name</label>
-                  <input type="text" required value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full bg-[#0f172a] border border-slate-700 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Phone Number</label>
-                  <input type="tel" required value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full bg-[#0f172a] border border-slate-700 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Return Date</label>
-                <input type="date" required value={returnDate} onChange={e => setReturnDate(e.target.value)} className="w-full bg-[#0f172a] border border-slate-700 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500" />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-amber-400 mb-1 flex items-center gap-1">
-                  <ShieldAlert className="w-3.5 h-3.5" /> Pre-Existing Damage / Scratches
-                </label>
-                <textarea rows="2" value={preDefects} onChange={e => setPreDefects(e.target.value)} placeholder="E.g., Screen scratch on left, missing charger cap..." className="w-full bg-[#0f172a] border border-slate-700 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500" />
-              </div>
-            </>
-          ) : (
-            <div>
-              <label className="block text-xs font-semibold text-red-400 mb-1 flex items-center gap-1">
-                <ShieldAlert className="w-3.5 h-3.5" /> Post-Return Inspection / New Defects
-              </label>
-              <textarea rows="3" value={postDefects} onChange={e => setPostDefects(e.target.value)} placeholder="Log any new scratches, physical damage, or missing hardware..." className="w-full bg-[#0f172a] border border-slate-700 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-red-500" />
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm text-slate-400">Inspection Photos</label>
+              <span className="text-xs text-amber-400">{photos.length} / 4 Photos</span>
             </div>
-          )}
 
-          <button type="submit" className={`w-full font-bold py-2.5 rounded text-xs uppercase tracking-wider transition-all mt-4 ${mode === 'dispatch' ? 'bg-amber-500 text-slate-950' : 'bg-emerald-600 text-white'}`}>
-            {mode === 'dispatch' ? 'Confirm Issue & Log Pre-Defects' : 'Confirm Return & Update Status'}
-          </button>
+            {photos.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {photos.map((p, idx) => (
+                  <div key={idx} className="relative rounded border border-slate-700 overflow-hidden aspect-square">
+                    <img src={p} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button 
+              type="button" 
+              onClick={() => setShowCamera(true)}
+              className="w-full py-2.5 bg-slate-800 border border-dashed border-slate-600 rounded-lg text-amber-400 font-medium hover:bg-slate-800/80 text-sm"
+            >
+              📷 {photos.length > 0 ? 'Manage / Add Photos' : 'Open Camera & Take Photos'}
+            </button>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-700 rounded-lg text-sm">
+              Cancel
+            </button>
+            <button type="submit" className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-lg text-sm cursor-pointer">
+              {mode === 'issue' ? 'Confirm & Issue' : 'Confirm & Return'}
+            </button>
+          </div>
         </form>
+
+        {showCamera && (
+          <CameraCapture 
+            existingPhotos={photos}
+            onCaptureComplete={(updatedPhotos) => setPhotos(updatedPhotos)} 
+            onClose={() => setShowCamera(false)} 
+          />
+        )}
       </div>
     </div>
   );
