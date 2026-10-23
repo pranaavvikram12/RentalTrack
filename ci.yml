@@ -1,0 +1,31 @@
+name: CampusEquip CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Verify Backend Dependencies
+        run: |
+          cd backend
+          npm ci || npm install
+
+      - name: Verify Frontend Build
+        run: |
+          cd frontend
+          npm ci || npm install
+          npm run build
